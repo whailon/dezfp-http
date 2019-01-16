@@ -83,7 +83,8 @@ func (s *XMLString) ToString() string {
 }
 
 // MakeOut 开具发票
-func MakeOut(xmlStr []byte) error {
+func (s *XMLString) MakeOut() error {
+	xmlStr := []byte(s.ToString())
 	//发送请求.
 	req, err := http.NewRequest("POST", URL, bytes.NewReader(xmlStr))
 	if err != nil {
