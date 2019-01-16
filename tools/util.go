@@ -26,14 +26,13 @@ func UnPadding(cipherText []byte) []byte {
 // TripleDESCBCEncrypt 三重DES加密
 // plainText 明文byte数组
 // key 密钥
-// iv 指定初始化向量IV
-func TripleDESCBCEncrypt(plainText, key, iv []byte) []byte {
+func TripleDESCBCEncrypt(plainText, key []byte) []byte {
 	block, err := des.NewTripleDESCipher(key)
 	if err != nil {
 		panic(err)
 	}
 	plainText = Padding(plainText, block.BlockSize())
-	blockMode := cipher.NewCBCEncrypter(block, iv)
+	blockMode := cipher.NewCBCEncrypter(block, key[:8])
 	cipherText := make([]byte, len(plainText))
 	blockMode.CryptBlocks(cipherText, plainText)
 	return cipherText
@@ -42,15 +41,14 @@ func TripleDESCBCEncrypt(plainText, key, iv []byte) []byte {
 // TripleDESCBCDecrypt 三重解密
 // cipherText 密文byte数组
 // key 密钥与加密一致
-// iv 指定初始化向量IV，与加密一致
-func TripleDESCBCDecrypt(cipherText, key, iv []byte) []byte {
+func TripleDESCBCDecrypt(cipherText, key []byte) []byte {
 	//指定解密算法，返回一个Block接口对象
 	block, err := des.NewTripleDESCipher(key)
 	if err != nil {
 		panic(err)
 	}
 	//指定分组模式，返回一个BlockMode接口对象
-	blockMode := cipher.NewCBCDecrypter(block, iv)
+	blockMode := cipher.NewCBCDecrypter(block, key[:8])
 	//解密
 	plainText := make([]byte, len(cipherText))
 	blockMode.CryptBlocks(plainText, cipherText)
