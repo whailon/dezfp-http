@@ -3,8 +3,6 @@ package client
 import (
 	"bytes"
 	"encoding/xml"
-	"errors"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -95,6 +93,10 @@ type Data struct {
 	Content *RequestContent `xml:"-"`
 }
 
+type ResponseData struct {
+	Content *ResponseContent `xml:"content"`
+}
+
 // BillClient xml请求
 type BillClient struct {
 	XMLName     xml.Name         `xml:"interface"`
@@ -102,6 +104,11 @@ type BillClient struct {
 	ReturnState *ReturnStateInfo `xml:"returnStateInfo"`
 	RequestData *Data            `xml:"data"`
 	Key         string           `xml:"-"`
+}
+
+type SecBillClient struct {
+	XMLName      xml.Name      `xml:"interface"`
+	ResponseData *ResponseData `xml:"data"`
 }
 
 // ToString 转成字符串
@@ -142,30 +149,15 @@ func NewBillClient() *BillClient {
 }
 
 // MakeOut 开具发票
-func (s *BillClient) MakeOut() error {
-	// BillClient初始化
-	xmlStr := s.init(MakeOutBill)
+func (s *BillClient) MakeOut() (interface{}, error) {
 	// 发起请求
-	resp, err := doAction(xmlStr)
-	if err != nil {
-		return err
-	}
-
-	if resp.ReturnState.ReturnCode != "0000" {
-		return errors.New(resp.ReturnState.ReturnMessage)
-	}
-
-	return nil
+	return s.doAction(MakeOutBill)
 }
 
 // Download 开具发票
-func (s *BillClient) Download() (*BillClient, error) {
-	// BillClient初始化
-	xmlStr := s.init(DownloadBill)
+func (s *BillClient) Download() (interface{}, error) {
 	// 发起请求
-	resp, err := doAction(xmlStr)
-	fmt.Println(resp.RequestData, err)
-	return resp, err
+	return s.doAction(DownloadBill)
 }
 
 func (s *BillClient) init(interfaceCode string) []byte {
@@ -178,11 +170,17 @@ func (s *BillClient) init(interfaceCode string) []byte {
 	return []byte(s.toString())
 }
 
+func (s *BillClient) getInterfaceCode() string {
+	return s.Global.InterfaceCode
+}
+
 func (s *BillClient) setInterfaceCode(code string) {
 	s.Global.InterfaceCode = code
 }
 
-func doAction(xmlStr []byte) (*BillClient, error) {
+func (s *BillClient) doAction(interfaceCode string) (interface{}, error) {
+	// BillClient初始化
+	xmlStr := s.init(interfaceCode)
 	//发送请求.
 	req, err := http.NewRequest("POST", URL, bytes.NewReader(xmlStr))
 	if err != nil {
@@ -202,7 +200,13 @@ func doAction(xmlStr []byte) (*BillClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	var xmlRe BillClient
+
+	if s.getInterfaceCode() == MakeOutBill {
+		var xmlRe BillClient
+		err = xml.Unmarshal(body, &xmlRe)
+		return xmlRe.ReturnState, err
+	}
+	var xmlRe SecBillClient
 	err = xml.Unmarshal(body, &xmlRe)
-	return &xmlRe, err
+	return xmlRe.ResponseData, err
 }

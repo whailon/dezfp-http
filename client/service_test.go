@@ -7,7 +7,7 @@ import (
 )
 
 // Test_encrypt()
-func Test_encrypt(t *testing.T) {
+func Test_MakeOut(t *testing.T) {
 	data := &Data{
 		Content: &RequestContent{
 			Fpqqlsh: "fpqqlsh",
@@ -17,6 +17,20 @@ func Test_encrypt(t *testing.T) {
 	client := NewBillClient()
 	client.RequestData = data
 	client.Key = "123456781234567812345678"
-	err := client.MakeOut()
-	assert.NotNil(t, err)
+	_, err := client.MakeOut()
+	assert.Nil(t, err)
+}
+
+func Test_Download(t *testing.T) {
+	data := &Data{
+		Content: &RequestContent{
+			Fpqqlsh: "fpqqlsh",
+			Dsptbm:  "dsptbm",
+		},
+	}
+	client := NewBillClient()
+	client.RequestData = data
+	client.Key = "123456781234567812345678"
+	_, err := client.Download()
+	assert.Nil(t, err)
 }
