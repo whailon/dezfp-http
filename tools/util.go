@@ -1,59 +1,60 @@
-package util
+package tools
 
 import (
 	"bytes"
-	"crypto/cipher"
 	"crypto/des"
+	"errors"
 )
 
-// Padding 补码
-func Padding(plainText []byte, blockSize int) []byte {
-	n := blockSize - len(plainText)%blockSize
-	temp := bytes.Repeat([]byte{byte(n)}, n)
-	plainText = append(plainText, temp...)
-	return plainText
+func PKCS5Padding(ciphertext []byte, blockSize int) []byte {
+	padding := blockSize - len(ciphertext)%blockSize
+	padtext := bytes.Repeat([]byte{byte(padding)}, padding)
+	return append(ciphertext, padtext...)
 }
 
-// UnPadding 删除填充
-func UnPadding(cipherText []byte) []byte {
-	//取出密文最后一个字节end
-	end := cipherText[len(cipherText)-1]
-	//删除填充
-	cipherText = cipherText[:len(cipherText)-int(end)]
-	return cipherText
+func PKCS5UnPadding(origData []byte) []byte {
+	length := len(origData)
+	// 去掉最后一个字节 unpadding 次
+	unpadding := int(origData[length-1])
+	return origData[:(length - unpadding)]
 }
 
-// TripleDESCBCEncrypt 三重DES加密
-// plainText 明文byte数组
-// key 密钥
-func TripleDESCBCEncrypt(plainText, key []byte) []byte {
+func TripleDesECBEncrypt(origData, key []byte) ([]byte, error) {
 	block, err := des.NewTripleDESCipher(key)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	plainText = Padding(plainText, block.BlockSize())
-	blockMode := cipher.NewCBCEncrypter(block, key[:8])
-	cipherText := make([]byte, len(plainText))
-	blockMode.CryptBlocks(cipherText, plainText)
-	return cipherText
+	bs := block.BlockSize()
+	origData = PKCS5Padding(origData, bs)
+	if len(origData)%bs != 0 {
+		return nil, errors.New("Need a multiple of the blocksize")
+	}
+	out := make([]byte, len(origData))
+	dst := out
+	for len(origData) > 0 {
+		block.Encrypt(dst, origData[:bs])
+		origData = origData[bs:]
+		dst = dst[bs:]
+	}
+	return out, nil
 }
 
-// TripleDESCBCDecrypt 三重解密
-// cipherText 密文byte数组
-// key 密钥与加密一致
-func TripleDESCBCDecrypt(cipherText, key []byte) []byte {
-	//指定解密算法，返回一个Block接口对象
+func TripleDesECBDecrypt(crypted, key []byte) ([]byte, error) {
 	block, err := des.NewTripleDESCipher(key)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	//指定分组模式，返回一个BlockMode接口对象
-	blockMode := cipher.NewCBCDecrypter(block, key[:8])
-	//解密
-	plainText := make([]byte, len(cipherText))
-	blockMode.CryptBlocks(plainText, cipherText)
-	//删除填充
-	plainText = UnPadding(plainText)
-	//返回明文
-	return plainText
+	bs := block.BlockSize()
+	if len(crypted)%bs != 0 {
+		return nil, errors.New("crypto/cipher: input not full blocks")
+	}
+	out := make([]byte, len(crypted))
+	dst := out
+	for len(crypted) > 0 {
+		block.Decrypt(dst, crypted[:bs])
+		crypted = crypted[bs:]
+		dst = dst[bs:]
+	}
+	out = PKCS5UnPadding(out)
+	return out, nil
 }
